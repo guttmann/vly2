@@ -2,7 +2,7 @@ import test from 'ava'
 import request from 'supertest'
 import { server, appReady } from '../../../server'
 import Person from '../person'
-
+import { jwtData } from '../../../middleware/session/__tests__/setSession.fixture'
 import MemoryMongo from '../../../util/test-memory-mongo'
 import people from '../__tests__/person.fixture'
 
@@ -70,6 +70,7 @@ test.serial('Should send correct person when queried against an id', async t => 
     .post('/api/people')
     .send(person)
     .set('Accept', 'application/json')
+    .set('Cookie', [`idToken=${jwtData.idToken}`])
     .expect(200)
 
   const pObj = JSON.parse(res1.res.text)
@@ -106,6 +107,7 @@ test.serial('Should correctly add a person', async t => {
     .post('/api/people')
     .send(p)
     .set('Accept', 'application/json')
+    .set('Cookie', [`idToken=${jwtData.idToken}`])
     .expect(200)
 
   try {
@@ -148,6 +150,7 @@ test.serial('Should correctly add a person and sanitise inputs', async t => {
     .post('/api/people')
     .send(p)
     .set('Accept', 'application/json')
+    .set('Cookie', [`idToken=${jwtData.idToken}`])
     .expect(200)
 
   const savedPerson = await Person.findOne({ email: p.email }).exec()
