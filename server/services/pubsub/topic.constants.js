@@ -9,6 +9,7 @@ const Topic = {
   TOPIC_INTEREST__MESSAGE: Symbol('INTEREST.MESSAGE'), // interest message via service
   TOPIC_INTEREST__UPDATE: Symbol('INTEREST.UPDATE'), // interest changed via service
   TOPIC_MEMBER__UPDATE: Symbol('MEMBER.UPDATE'), // membership changed via service
+  TOPIC_OPPORTUNITY__ARCHIVE: Symbol('OPPORTUNITY.ARCHIVE'), // opportunity archived
   TOPIC_PERSON__CREATE: Symbol('PERSON.CREATE'), // new person created via API
   TOPIC_PERSON__EMAIL_SENT: Symbol('PERSON.EMAIL_SENT') // email sent to a person
 }
