@@ -10,6 +10,8 @@ const sanitizeHtml = require('sanitize-html')
 const { getLocationRecommendations, getSkillsRecommendations } = require('./opportunity.util')
 const { Role } = require('../../services/authorize/role')
 const Member = require('../member/member')
+const PubSub = require('pubsub-js')
+const { TOPIC_OPPORTUNITY__ARCHIVE } = require('../../services/pubsub/topic.constants')
 
 /**
  * Get all ops
@@ -238,8 +240,14 @@ const createOpportunity = async (req, res, next) => {
 
 const archiveOpportunity = async (id) => {
   const opportunity = await Opportunity.findById(id).exec()
-  await new ArchivedOpportunity(opportunity.toJSON()).save()
+
+  const archivedOpportunity = new ArchivedOpportunity(opportunity.toJSON())
+  await archivedOpportunity.save()
+
   await Opportunity.deleteOne({ _id: id }).exec()
+
+  PubSub.publish(TOPIC_OPPORTUNITY__ARCHIVE, archivedOpportunity)
+
   return archiveOpportunity
 }
 

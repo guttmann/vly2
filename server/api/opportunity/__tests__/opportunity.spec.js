@@ -3,6 +3,8 @@ import request from 'supertest'
 import MemoryMongo from '../../../util/test-memory-mongo'
 import { server, appReady } from '../../../server'
 import { regions } from '../../location/locationData'
+import PubSub from 'pubsub-js'
+import { TOPIC_OPPORTUNITY__ARCHIVE } from '../../../services/pubsub/topic.constants'
 
 // Schemas
 import Opportunity from '../opportunity'
@@ -348,6 +350,33 @@ test.serial('Should archive Opportunity when a completed update is sent', async 
   t.is(res.status, 200)
   const queriedOpportunity = await archivedOpportunity.findOne({ name: 'Java Robots in the house' }).exec()
   t.is(queriedOpportunity.status, OpportunityStatus.COMPLETED)
+})
+
+test.serial('Publish event on opportunity archival', async (t) => {
+  t.plan(1)
+
+  const opportunityToArchive = new Opportunity({
+    name: 'Test opportunity to archive',
+    status: OpportunityStatus.ACTIVE,
+    requestor: t.context.people[0]._id
+  })
+
+  await opportunityToArchive.save()
+
+  const archiveSubscription = new Promise((resolve, reject) => {
+    PubSub.subscribe(TOPIC_OPPORTUNITY__ARCHIVE, (msg, archivedOpportunity) => {
+      t.is(archivedOpportunity._id.toString(), opportunityToArchive._id.toString())
+      resolve(true)
+    })
+  })
+
+  await request(server)
+    .put(`/api/opportunities/${opportunityToArchive._id}`)
+    .send({ status: OpportunityStatus.COMPLETED })
+    .set('Accept', 'application/json')
+    .set('Cookie', [`idToken=${jwtData.idToken}`])
+
+  await archiveSubscription
 })
 
 test.serial('should archive interests associated with opportunity', async t => {
