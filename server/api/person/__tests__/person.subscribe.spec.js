@@ -16,7 +16,6 @@ import sinon from 'sinon'
 
 test.before('before connect to database', async (t) => {
   t.context.server = express()
-  Subscribe(t.context.server)
   t.context.memMongo = new MemoryMongo()
   await t.context.memMongo.start()
   t.context.people = await Person.create(people)
@@ -36,7 +35,15 @@ test.after.always(async (t) => {
   await t.context.memMongo.stop()
 })
 
-test('Trigger TOPIC_PERSON__CREATE', async t => {
+test.beforeEach(t => {
+  Subscribe(t.context.server)
+})
+
+test.afterEach.always(t => {
+  PubSub.clearAllSubscriptions()
+})
+
+test.serial('Trigger TOPIC_PERSON__CREATE', async t => {
   t.plan(2)
 
   const newPerson = t.context.people[0]
@@ -50,7 +57,7 @@ test('Trigger TOPIC_PERSON__CREATE', async t => {
   await done
 })
 
-test('Trigger TOPIC_MEMBER__UPDATE', async t => {
+test.serial('Trigger TOPIC_MEMBER__UPDATE', async t => {
   t.plan(2)
 
   const newMember = {
@@ -69,7 +76,7 @@ test('Trigger TOPIC_MEMBER__UPDATE', async t => {
   await done
 })
 
-test('TOPIC_MEMBER__UPDATE for exmember sends no email', async t => {
+test.serial('TOPIC_MEMBER__UPDATE for exmember sends no email', async t => {
   t.plan(1)
 
   const newMember = {
@@ -84,10 +91,10 @@ test('TOPIC_MEMBER__UPDATE for exmember sends no email', async t => {
   // but at least we can run the code.
 })
 
-test('Trigger TOPIC_INTEREST__UPDATE INTERESTED', async t => {
+test.serial('Trigger TOPIC_INTEREST__UPDATE INTERESTED', async t => {
   t.plan(4)
-  let callcount = 0
-  const spy = sinon.spy()
+  let personEmailSentCount = 0
+
   const newInterest = {
     person: t.context.people[0],
     opportunity: t.context.ops[0],
@@ -98,47 +105,57 @@ test('Trigger TOPIC_INTEREST__UPDATE INTERESTED', async t => {
     type: 'accept',
     status: InterestStatus.INTERESTED
   }
+
+  // we're expecting two emails to be sent when TOPIC_INTEREST__UPDATE is triggered
+  // in the way it is here (essentially a new interest being created)
+  // 1. an email to the interest's opportunity requestor - informing of a new interest/status change
+  // 2. an email to the interest's person - informing of new interest/status change
+  let expectedEmailsTo = [
+    t.context.people[0].email,
+    t.context.people[1].email
+  ]
+
   const done = new Promise((resolve, reject) => {
     PubSub.subscribe(TOPIC_PERSON__EMAIL_SENT, async (msg, info) => {
-      t.is(info.originalMessage.to, t.context.people[0].email)
-      spy()
-      callcount++
-      if (callcount === 2) { resolve(true) }
+      t.true(expectedEmailsTo.includes(info.originalMessage.to))
+      expectedEmailsTo = expectedEmailsTo.filter(email => email !== info.originalMessage.to)
+
+      personEmailSentCount++
+      if (personEmailSentCount === 2) { resolve(true) }
     })
   })
+
   t.true(PubSub.publish(TOPIC_INTEREST__UPDATE, newInterest))
   await done
-  t.true(spy.calledTwice)
+
+  t.is(expectedEmailsTo.length, 0)
 })
 
-test('Trigger TOPIC_INTEREST__UPDATE INVITED', async t => {
-  t.plan(4)
-  let callcount = 0
-  const spy = sinon.spy()
+test.serial('Trigger TOPIC_INTEREST__UPDATE INVITED', async t => {
+  t.plan(2)
+
   const newInterest = {
     person: t.context.people[0],
     opportunity: t.context.ops[0],
     messages: [{ // this works whether its an object or array.
-      body: 'testing TOPIC_INTEREST__UPDATE INTERESTED',
+      body: 'testing TOPIC_INTEREST__UPDATE INVITED',
       author: t.context.people[1]._id
     }],
     type: 'accept',
     status: InterestStatus.INVITED
   }
+
   const done = new Promise((resolve, reject) => {
     PubSub.subscribe(TOPIC_PERSON__EMAIL_SENT, async (msg, info) => {
       t.is(info.originalMessage.to, t.context.people[0].email)
-      spy()
-      callcount++
-      if (callcount === 2) { resolve(true) }
+      resolve()
     })
   })
   t.true(PubSub.publish(TOPIC_INTEREST__UPDATE, newInterest))
   await done
-  t.true(spy.calledTwice)
 })
 
-test('Trigger TOPIC_INTEREST__UPDATE COMMITTED', async t => {
+test.serial('Trigger TOPIC_INTEREST__UPDATE COMMITTED', async t => {
   t.plan(3)
   const spy = sinon.spy()
   const newInterest = {
