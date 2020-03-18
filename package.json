@@ -4,7 +4,7 @@
   "description": "Voluntari.ly Client based on Next.js",
   "main": "server/server.js",
   "scripts": {
-    "test": "cross-env NODE_ENV=test PORT=8080 node_modules/.bin/nyc node --no-deprecation node_modules/ava/cli.js",
+    "test": "cross-env NODE_ENV=test PORT=8080 node --no-deprecation node_modules/ava/cli.js --verbose",
     "test-all": "cross-env NODE_ENV=test PORT=8080 node_modules/.bin/nyc --all node --no-deprecation node_modules/ava/cli.js",
     "watch:test": "npm run test -- --watch",
     "end-to-end-test": "run-p -r dev testcafe-tests",

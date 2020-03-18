@@ -6,7 +6,8 @@ const {
   TOPIC_MEMBER__UPDATE,
   TOPIC_INTEREST__UPDATE,
   TOPIC_INTEREST__MESSAGE,
-  TOPIC_PERSON__EMAIL_SENT
+  TOPIC_PERSON__EMAIL_SENT,
+  TOPIC_OPPORTUNITY__ARCHIVE
 } = require('../../services/pubsub/topic.constants')
 const { MemberStatus } = require('../member/member.constants')
 const { InterestStatus } = require('../interest/interest.constants')
@@ -94,6 +95,10 @@ module.exports = (server) => {
       const info = await emailPerson(template, op.requestor, props)
       PubSub.publish(TOPIC_PERSON__EMAIL_SENT, info)
     }
+  })
+
+  PubSub.subscribe(TOPIC_OPPORTUNITY__ARCHIVE, async (msg, archivedOpportunity) => {
+    PubSub.publish(TOPIC_PERSON__EMAIL_SENT, {})
   })
 }
 

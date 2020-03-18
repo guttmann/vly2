@@ -1,7 +1,7 @@
 import test from 'ava'
 import express from 'express'
 import PubSub from 'pubsub-js'
-import { TOPIC_PERSON__CREATE, TOPIC_MEMBER__UPDATE, TOPIC_INTEREST__UPDATE, TOPIC_PERSON__EMAIL_SENT } from '../../../services/pubsub/topic.constants'
+import { TOPIC_PERSON__CREATE, TOPIC_MEMBER__UPDATE, TOPIC_INTEREST__UPDATE, TOPIC_PERSON__EMAIL_SENT, TOPIC_OPPORTUNITY__ARCHIVE } from '../../../services/pubsub/topic.constants'
 import MemoryMongo from '../../../util/test-memory-mongo'
 import Person from '../person'
 import people from './person.fixture'
@@ -13,6 +13,8 @@ import Subscribe from '../person.subscribe.js'
 import { MemberStatus } from '../../member/member.constants'
 import { InterestStatus } from '../../interest/interest.constants'
 import sinon from 'sinon'
+import nodemailerMock from 'nodemailer-mock'
+import { OpportunityStatus } from '../../opportunity/opportunity.constants'
 
 test.before('before connect to database', async (t) => {
   t.context.server = express()
@@ -178,4 +180,39 @@ test.serial('Trigger TOPIC_INTEREST__UPDATE COMMITTED', async t => {
   t.true(PubSub.publish(TOPIC_INTEREST__UPDATE, newInterest))
   await done
   t.true(spy.calledOnce)
+})
+
+test.serial('TOPIC_OPPORTUNITY__ARCHIVE', async t => {
+  const archivedOpportunity = {
+    name: 'Test name',
+    title: 'Test title',
+    subtitle: 'Test subtitle',
+    imgUrl: '/static/img/opportunity/opportunity.png',
+    description: 'Test description',
+    duration: 'Test duration',
+    location: 'Test location',
+    venue: 'Test venue',
+    status: OpportunityStatus.CANCELLED,
+    date: ['2020-03-20T09:00:00'],
+    requestor: t.context.people[0]._id,
+    dateAdded: '2020-03-19T09:00:00',
+    tags: { type: [String], required: true, default: [] }
+  }
+
+  let token = null
+
+  const emailSent = new Promise((resolve, reject) => {
+    token = PubSub.subscribe(TOPIC_PERSON__EMAIL_SENT, (msg, info) => {
+      resolve()
+    })
+  })
+
+  PubSub.publish(TOPIC_OPPORTUNITY__ARCHIVE, archivedOpportunity)
+
+  await emailSent
+
+  const sentMail = nodemailerMock.mock.getSentMail()
+
+  PubSub.unsubscribe(token)
+  t.true(true)
 })
